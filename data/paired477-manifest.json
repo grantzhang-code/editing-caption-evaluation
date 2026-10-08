@@ -1,0 +1,96 @@
+{
+  "rows": 477,
+  "uid_unique": true,
+  "variants": [
+    "gt",
+    "original",
+    "checkpoint_11000"
+  ],
+  "checkpoint_status": {
+    "success": 475,
+    "invalid_schema": 1,
+    "length_truncated": 1
+  },
+  "gt_model": "gpt-6-astra",
+  "gt_reasoning_effort": "medium",
+  "selection_sha256": "1480d28ac56fe597d1f77371d7c2e30bd96b7a2750beaf69e5d0d348f5aee681",
+  "artifacts": [
+    {
+      "name": "checkpoint_11000.jsonl",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/checkpoint_11000.jsonl",
+      "bytes": 9002187,
+      "sha256": "e72a0b956dd9d15f5d76cc858ab813055283880b2d47c671089814a08ab1d6ee"
+    },
+    {
+      "name": "gt.jsonl",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/gt.jsonl",
+      "bytes": 7159344,
+      "sha256": "7e5114ae260b566efc04370b54a2ea987c457911421c2bc156e3e0f3f05fb62a"
+    },
+    {
+      "name": "original.jsonl",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/original.jsonl",
+      "bytes": 7036669,
+      "sha256": "6e53f10c2680daca7b5638d8bc865f65c89bbf6b05b7276bc3b440fd6063a81f"
+    },
+    {
+      "name": "paired477.jsonl",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/paired477.jsonl",
+      "bytes": 32000274,
+      "sha256": "9b807f61774bca8ed45ed1d358748a003a3485b46c856e73c656358fd37fdd8a"
+    },
+    {
+      "name": "paired477.parquet",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/paired477.parquet",
+      "bytes": 7517972,
+      "sha256": "ce498c1ed21b4327b9fe9216318f844b198273c209e4947437c89999699c3aee"
+    },
+    {
+      "name": "evaluation-inputs477.jsonl",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/evaluation-inputs477.jsonl",
+      "bytes": 33210156,
+      "sha256": "f9d917e5984932577ef9b34569f1caf420d7a869ebd4f139ff478a9f10e2c422"
+    },
+    {
+      "name": "selection-lock.json",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/selection-lock.json",
+      "bytes": 88025,
+      "sha256": "1480d28ac56fe597d1f77371d7c2e30bd96b7a2750beaf69e5d0d348f5aee681"
+    },
+    {
+      "name": "prediction-binding-audit.json",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/prediction-binding-audit.json",
+      "bytes": 832,
+      "sha256": "0ed6427721c01f1fc081ca3b7ac2d0654b549f277bd3b6b2e8ab98ee2f51d542"
+    },
+    {
+      "name": "embedding-model-lock.json",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/embedding-model-lock.json",
+      "bytes": 251,
+      "sha256": "71323c5b4106ee5e2d0eb3d1a2055f6cd01bce8a6287b4f12ff21b38f11b0478"
+    },
+    {
+      "name": "validation-report.json",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/validation-report.json",
+      "bytes": 1819,
+      "sha256": "6a93ba025f3ffa206ef491352548d0d373c0eda78d93099b767f84155c553eac"
+    },
+    {
+      "name": "README.md",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/README.md",
+      "bytes": 1832,
+      "sha256": "9dd815a1e44de619ab42286c0667a45c2a5f05f45cb56d1209938157e76f51a1"
+    },
+    {
+      "name": "checksums.sha256",
+      "uri": "s3://core-cn-oss.canva.com/usr/grantzhang/editing-caption-benchmark/20261008-paired477-astra-medium-v1/checksums.sha256",
+      "bytes": 943,
+      "sha256": "5d3be2e0368d759c9c27b822ccadf95c6842e76910f0e24abb38c225a8dc7fe2"
+    }
+  ],
+  "schema_version": 1,
+  "source_requested_cases": 500,
+  "evaluation_tasks": 954,
+  "repository": "https://github.com/grantzhang-code/editing-caption-evaluation",
+  "image_policy": "SHA256-bound source/target references; standalone images and Parquet row locators; no pixel duplication"
+}
