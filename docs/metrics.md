@@ -1,73 +1,97 @@
-# Frozen metric protocol
+# Selected evaluation metrics
 
-`benchmark/metrics.py` implements geometry and aggregation;
-`benchmark/bench_contracts.py` contains the complete judge prompt and strict JSON
-schema. The protocol ID is `editing-caption-eval477-luna-low-v1-20261008`.
+Final reports retain the following **ten metrics**, in this order. The interactive
+Chinese guide in [site/index.html](../site/index.html) includes worked examples,
+source correspondence judgment, a Q calculator, and a Joint F1 calculator.
 
-## Matching
+The scoring protocol remains `editing-caption-eval477-luna-low-v1-20261008`.
+Reporting selection is versioned as `selected-ten-v1`; it changes the reported
+metrics and paired aggregation, not the frozen scoring formulas or judge calls.
 
-Target regions are matched with a one-to-one Hungarian assignment maximizing
-total IoU. Edges below IoU 0.50 are gated before assignment. Matching uses only
-geometry, never language, region labels or provenance class. Source-reference
-boxes are matched inside each matched target pair and within the same frame ID,
-also at IoU 0.50. Unmatched and duplicate predictions count in denominators.
-RegionPQ sensitivity at 0.30 and 0.75 is saved in each per-case score.
+## Matching and notation
 
-Let `P,G` be target-region counts, `EP,EG` source-edge counts, and `M` matched
-target pairs. The judge returns precision and recall from `{0,.25,.5,.75,1}`.
-Quality `Q` is their harmonic mean, or zero for a critical error. A critical
-error includes a wrong direction, identity, count, salient exact text, negation,
-source frame or major hallucination.
+Target boxes use a Hungarian assignment maximizing total IoU, with edges below
+0.50 gated before assignment. Matching uses geometry, not labels or descriptions.
+Source-reference boxes are matched only within matched target pairs and the same
+source frame, also with IoU >= 0.50. Every unmatched or duplicate region/edge
+remains in its respective denominator.
 
-| Metric | Definition |
-| --- | --- |
-| Target RegionPQ | `2 * sum(target IoU) / (P + G)` |
-| Target Match F1 | `2 * len(M) / (P + G)` |
-| Target Desc F1 | `2 * sum(matched description Q) / (P + G)` |
-| Caption Embedding F1 | `2 * sum(matched cosine similarity clipped to [0,1]) / (P + G)` |
-| Reference PairPQ | `2 * sum(min(target IoU, reference IoU)) / (EP + EG)` |
-| Reference conditional IoU | Mean IoU of matched source edges only |
-| Reference Link F1 | `2 * sum(correct source correspondences) / (EP + EG)` |
-| Reference GroundedPQ | Reference PairPQ with incorrect correspondences contributing zero |
-| Local Edit Instruction F1 | `2 * sum(instruction Q * origin correctness)` over pairs both marked edit, divided by all predicted plus GT edit-region counts |
-| Editing Edge Joint F1 | `2 * sum(min IoUs * correspondence correctness * origin correctness * local quality) / (EP + EG)` |
-| Global HLD / Instruction F1 | Judge Q for target description / source-to-target edit instruction |
-| Event Recall | Fraction of frozen GT events covered and not contradicted by the global instruction |
+`Np, Ng`: all predicted/GT target regions, including edit, keep and generated.
+`Ep, Eg`: all predicted/GT source-reference edges attached to target regions.
+`M, L`: matched target pairs and matched reference edges, respectively.
+`w = min(target IoU, source-reference IoU)` for each matched edge.
+`C`: judge's boolean `correspondence_correct`, based on the actual source entity.
+`O`: judge's boolean `origin_correct`, based on visible edit/keep/generated provenance.
 
-For a keep edge, local quality is origin correctness. Per-origin edit, keep and
-generated RegionPQ, description and origin metrics are also emitted. Removal
-content is included in the global instruction/event evaluation; this protocol
-does not claim a separate removal-box detection metric. Generated local
-instructions are not counted as local edits. Conditional metrics do not measure
-missed regions or edges and should be read alongside unconditional F1/PQ.
+The judge supplies precision and recall independently from `{0,.25,.5,.75,1}`.
+`Q = 2*p*r/(p+r)`, or zero if `critical_error=true` or `p+r=0`. These are holistic
+rubric ratings, not counted fractions of atomic facts. The same formula is used
+separately for region description, local instruction, global description, and
+global instruction; each has its own precision, recall and critical-error flag.
+
+## The ten metrics
+
+| Metric | Per-case definition | Scope |
+| --- | --- | --- |
+| Target RegionPQ | `2 * sum(target IoU over M) / (Np + Ng)` | Target localization and coverage |
+| Target Desc F1 | `2 * sum(Q_desc over M) / (Np + Ng)` | Target-visible facts in region descriptions |
+| Caption Embedding F1 | `2 * sum(clipped cosine similarity over M) / (Np + Ng)` | Matched region descriptions only |
+| Reference GroundedPQ | `2 * sum(w * C over L) / (Ep + Eg)` | Both endpoints and correct source correspondence |
+| Local Edit Instruction F1 | `2 * sum(Q_instruction * O over pairs both marked edit) / (Np_edit + Ng_edit)` | Local changes and their edit provenance |
+| Editing Edge Joint F1 | `2 * sum(w * C * O * J over L) / (Ep + Eg)` | Full source-to-target relation and local operation |
+| Global HLD F1 | `Q_global_description` | Entire target scene |
+| Global Instruction F1 | `Q_global_instruction` | Entire source-to-target transformation |
+| Global HLD critical-error rate | Mean of `global_description.critical_error` | Severe errors in target description; lower is better |
+| Global Instruction critical-error rate | Mean of `global_instruction.critical_error` | Severe errors in edit direction/content; lower is better |
+
+For Joint F1, `J = Q_instruction` for a GT edit and `J = O` for a GT keep.
+For a keep, `O*O = O` because O is boolean. Local Edit Instruction F1 does not
+explicitly multiply source-reference IoU or correspondence C. Generated regions
+without references and standalone removal records are not part of edge metrics.
+Additions and removals are considered by the global instruction judge.
+
+The three target-region metrics return zero when `Np + Ng = 0`. Reference
+metrics are N/A when `Ep + Eg = 0`; local instruction is N/A when both sides
+have zero edit regions. Q values are separate per scope: an error in a local
+description does not automatically set the global instruction's error flag.
 
 ## Judge and embedding
 
-The default judge is `gpt-6-luna`, reasoning effort `low`, with original source
-and target images and frozen GT events. Candidate variant and checkpoint identity
-are withheld from the prompt. Region/edge assignments are fixed; the judge must
-return each assigned pair and each GT event exactly once. It flags suspect GT
-facts without modifying the frozen reference. Provider status, model, effort,
-JSON schema and assignment coverage are checked before accepting a judgment.
+The default judge is `gpt-6-luna`, reasoning effort `low`. It sees the original
+source and target images, region/edge geometry and descriptions, global texts,
+and frozen model-assisted GT context. Image evidence is the final authority.
+Candidate variant identity and raw original user instruction are withheld.
+The exact prompt and strict schema are in `benchmark/bench_contracts.py`.
+
+Source correspondence is a model visual judgment: the reference must identify
+the source entity/component that actually corresponds to the target, not merely
+overlapping background or another similar instance. It returns a boolean and
+text evidence. There is no independently verified instance-ID assignment or
+separate identity confidence value; repeated objects and large changes can be ambiguous.
 
 Embedding uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`,
-revision `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`, max length 512,
-attention-mask mean pooling, and L2 normalization. It uses matched region
-descriptions only. Truncation counts and model settings are saved in the
-embedding audit. Cached vectors are reused only with matching text hashes and
-model settings. `--model-path` must point to that pinned snapshot; it permits
-offline loading, not a different model. Floating-point values can vary slightly
-across runtime versions and hardware.
+revision `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`, max length 512 tokens,
+attention-mask mean pooling and L2 normalization. Cosine similarities are
+clipped to [0,1]; an empty description contributes zero. Model settings and
+truncation counts are audited. Cached vectors require matching text hashes and
+model settings. `--model-path` must refer to that pinned snapshot.
 
-## Reporting
+## Final report aggregation
 
-Macro means exclude inapplicable null values. Weighted means renormalize the
-selected cases' positive weights over applicable rows. Every metric reports
-`n_applicable` and `applicable_weight`. Paired deltas use only cases where both
-variants have an applicable score and report a separate paired N. Partial
-variant macro means may cover different case sets and are not paired estimates.
+For each metric, both displayed variant means and their delta use **the same
+cases where both variants have a non-null value**. Per-case scores are averaged
+equally; regions are not pooled across cases. Precision/recall are converted to
+Q before averaging. Each row reports its own paired N. Static metrics preserve
+their coverage even when semantic judge tasks fail.
 
-Native prediction failures receive empty-prediction scores, while provider and
-validation failures remain failed/pending tasks. A complete result needs all
-954 semantic scores and all 954 static scores. The public workflow does not
-change the metric formulas from the frozen run.
+`summary.json`, `REPORT.md` and `per-case.csv` contain only the selected ten metric
+columns (plus metadata). `by_variant` summaries also provide weighted means
+renormalized over applicable rows; these are distinct from the paired macro
+table. Raw per-case judgments and score JSON retain the frozen diagnostic fields
+for verification, without another paid evaluation.
+
+Native invalid predictions are scored as empty, with zero applicable quality
+scores. Their critical-error flags are false in this protocol, so the two
+critical-error rates are not total failure rates. Provider/validation failures
+remain missing semantic scores and are not converted to zero. A complete run
+requires all 954 semantic and 954 static results for the frozen 477-case dataset.

@@ -9,37 +9,13 @@ import numpy as np
 from . import metrics
 from .data import load_dataset
 from .bench_contracts import MODEL, EFFORT, JUDGE_SCHEMA
+from .reporting import SELECTED_METRICS, REPORT_VERSION, reporting_rows, paired_comparison
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results"
 BUCKET = ""
 PREFIX = ""
-COUNTS = {
-    "pred_regions",
-    "gt_regions",
-    "matched_regions",
-    "pred_edges",
-    "gt_edges",
-    "matched_edges",
-    "gt_concern_count",
-}
-MAIN = [
-    ("target_region_pq", "Target RegionPQ"),
-    ("target_match_f1", "Target Match F1"),
-    ("target_caption_embedding_f1", "Caption Embedding F1"),
-    ("target_desc_f1", "Target Desc F1"),
-    ("reference_pair_pq", "Reference PairPQ"),
-    ("reference_iou_conditional", "Reference conditional IoU"),
-    ("reference_link_f1", "Reference Link F1"),
-    ("reference_grounded_pq", "Reference GroundedPQ"),
-    ("local_edit_instruction_f1", "Local Edit Instruction F1"),
-    ("editing_edge_joint_f1", "Editing Edge Joint F1"),
-    ("global_description_semantic_f1", "Global HLD F1"),
-    ("global_instruction_semantic_f1", "Global Instruction F1"),
-    ("event_recall", "Event Recall"),
-    ("global_description_critical_error", "Global HLD critical-error rate"),
-    ("global_instruction_critical_error", "Global Instruction critical-error rate"),
-]
+MAIN = SELECTED_METRICS
 
 
 def dump(v):
@@ -78,7 +54,7 @@ def pull(s3):
 
 def aggregate(rows):
     result = {}
-    for key in sorted({k for r in rows for k in r["metrics"]} - COUNTS):
+    for key, _ in MAIN:
         eligible = [
             (r["metrics"][key], r["analysis_weight"])
             for r in rows
@@ -134,7 +110,6 @@ def main():
     failures = []
     pending = []
     concerns = []
-    events = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0]))
     usage = collections.defaultdict(collections.Counter)
     for pred in preds:
         variant = pred["variant"]
@@ -224,18 +199,16 @@ def main():
         scored.append(result)
         for issue in judge["gt_concerns"]:
             concerns.append(dict(variant=variant, rank=rank, **issue))
-        kinds = {e["id"]: e["kind"] for e in gt["raw_ir"]["events"]}
-        for e in judge["events"]:
-            x = events[variant][kinds[e["gt_event_id"]]]
-            x[0] += bool(e["covered"] and not e["contradicted"])
-            x[1] += 1
     for p in OUT.glob("cases/*/*/judge-attempt-*/response.json"):
         variant = p.parents[2].name
         u = json.loads(p.read_text()).get("usage") or {}
         usage[variant]["responses"] += 1
         for k in ("input_tokens", "output_tokens", "total_tokens"):
             usage[variant][k] += u.get(k, 0)
+    report_rows = reporting_rows(preds, samples, scored, static, failures)
     summary = dict(
+        report_version=REPORT_VERSION,
+        selected_metrics=[name for name, _ in MAIN],
         requested_cases=case_count,
         requested_tasks=task_count,
         scored=len(scored),
@@ -254,9 +227,9 @@ def main():
         timestamp=time.time(),
     )
     for variant in variants:
-        rows = [r for r in scored if r["variant"] == variant]
+        rows = [r for r in report_rows if r["variant"] == variant]
         summary["by_variant"][variant] = dict(
-            scored=len(rows),
+            scored=sum(r["status"] == "scored" for r in rows),
             native_invalid_predictions=sum(bool(r["invalid_prediction"]) for r in rows),
             overall=aggregate(rows),
             by_cohort={
@@ -264,29 +237,8 @@ def main():
                 for c in sorted({r["test_cohort"] for r in rows})
             },
             gt_concern_cases=len({x["rank"] for x in concerns if x["variant"] == variant}),
-            event_recall_by_kind={
-                k: dict(covered=v[0], total=v[1], recall=v[0] / v[1])
-                for k, v in events[variant].items()
-            },
         )
-    paired = {}
-    indexed = {(r["variant"], r["rank"]): r for r in scored}
-    for metric, label in MAIN:
-        pairs = []
-        for rank in gts:
-            a = indexed.get(("original", rank))
-            b = indexed.get(("checkpoint_11000", rank))
-            if (
-                a
-                and b
-                and a["metrics"].get(metric) is not None
-                and b["metrics"].get(metric) is not None
-            ):
-                pairs.append(float(b["metrics"][metric]) - float(a["metrics"][metric]))
-        if pairs:
-            paired[metric] = dict(
-                n=len(pairs), mean_checkpoint_minus_original=float(np.mean(pairs))
-            )
+    paired = paired_comparison(report_rows)
     summary["paired_comparison"] = paired
     save("summary.json", summary)
     save("gt-concerns.json", concerns)
@@ -296,7 +248,7 @@ def main():
         ),
         flush=True,
     )
-    if scored:
+    if report_rows:
         flat = [
             dict(
                 variant=r["variant"],
@@ -304,10 +256,11 @@ def main():
                 record_uid=r["record_uid"],
                 cohort=r["test_cohort"],
                 benchmark_group=r["benchmark_group"],
+                status=r["status"],
                 invalid_prediction=r["invalid_prediction"],
                 **r["metrics"],
             )
-            for r in scored
+            for r in report_rows
         ]
         with (OUT / "per-case.csv").open("w") as f:
             writer = csv.DictWriter(f, fieldnames=list(flat[0]))
@@ -320,20 +273,18 @@ def main():
         "",
         "GT: Astra medium, frozen before evaluation. Original and checkpoint-11000 use the same frozen identities. Native checkpoint failures remain in the denominator with zero scores. Shared upstream parses and the selected GT-success subset limit interpretation as human accuracy or full population performance.",
         "",
-        "| Metric | Original macro | Checkpoint-11000 macro | Paired delta (checkpoint − original) | Paired N |",
+        "| Metric | Original paired macro | Checkpoint-11000 paired macro | Paired delta (checkpoint − original) | Paired N |",
         "|---|---:|---:|---:|---:|",
     ]
     for metric, label in MAIN:
-        a = summary["by_variant"]["original"]["overall"].get(metric)
-        b = summary["by_variant"]["checkpoint_11000"]["overall"].get(metric)
         d = paired.get(metric)
-        if a and b and d:
+        if d:
             lines.append(
-                f"| {label} | {a['macro']:.4f} | {b['macro']:.4f} | {d['mean_checkpoint_minus_original']:+.4f} | {d['n']} |"
+                f"| {label} | {d['original_macro']:.4f} | {d['checkpoint_11000_macro']:.4f} | {d['mean_checkpoint_minus_original']:+.4f} | {d['n']} |"
             )
     lines += [
         "",
-        "Higher is better except critical-error rates. Conditional reference IoU excludes unmatched edges. The weighted summaries renormalize frame weights over the selected applicable subset; see summary.json for denominators, cohort results, events, concerns and usage.",
+        "Higher is better except critical-error rates. Both means and their delta use the same applicable paired cases for each metric. Static metrics retain full coverage when judge tasks fail. Final reports contain only the ten selected metrics; raw score artifacts retain the frozen diagnostic fields. Weighted summaries renormalize frame weights over the applicable subset.",
     ]
     (OUT / "REPORT.md").write_text("\n".join(lines) + "\n")
     if args.publish:

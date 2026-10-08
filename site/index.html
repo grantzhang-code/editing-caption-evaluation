@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Editing Caption 最终十项评分指标：计算公式、匹配规则、视觉评分标准及交互示例。">
+  <title>Editing Caption · 十项评分指标</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="topbar">
+  <a class="brand" href="#overview"><span class="brand-icon">EC</span><span>Editing Caption <span class="brand-light">/ Evaluation</span></span></a>
+  <a class="repo-link" href="https://github.com/grantzhang-code/editing-caption-evaluation" target="_blank" rel="noopener">GitHub ↗</a>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+    <p class="nav-label">指标说明 · 10 METRICS</p>
+    <nav aria-label="页面目录">
+      <a href="#overview">概览与匹配规则</a>
+      <a href="#quality">Q 如何计算 <span class="nav-tag">交互</span></a>
+      <span class="nav-group">目标区域质量</span>
+      <a href="#region-pq"><span>01</span> Target RegionPQ</a>
+      <a href="#desc-f1"><span>02</span> Target Desc F1</a>
+      <a href="#embedding-f1"><span>03</span> Caption Embedding F1</a>
+      <span class="nav-group">来源对应与局部编辑</span>
+      <a href="#grounded-pq"><span>04</span> Reference GroundedPQ</a>
+      <a href="#local-instruction"><span>05</span> Local Edit Instruction F1</a>
+      <a href="#joint-f1"><span>06</span> Editing Edge Joint F1</a>
+      <a href="#joint-lab">连接质量计算器 <span class="nav-tag">交互</span></a>
+      <span class="nav-group">全局质量</span>
+      <a href="#global-hld"><span>07</span> Global HLD F1</a>
+      <a href="#global-instruction"><span>08</span> Global Instruction F1</a>
+      <a href="#hld-error"><span>09</span> Global HLD 严重错误率</a>
+      <a href="#instruction-error"><span>10</span> Global Instruction 严重错误率</a>
+      <a href="#aggregation">汇总与适用范围</a>
+    </nav>
+    <div class="sidebar-note">GT · Astra medium<br>Judge · Luna low<br><span>477 cases · paired evaluation</span></div>
+  </aside>
+  <main id="main">
+    <section id="overview" class="hero">
+      <div class="eyebrow"><span class="dot"></span> FINAL METRIC SELECTION / 2026.10.08</div>
+      <h1>每个分数，<br><em>如何计算。</em></h1>
+      <p class="lead">从目标区域的定位与描述，到来源对应和编辑指令。<br class="desktop">这十项指标，分别回答结构化 caption 是否准确、完整，以及编辑关系是否成立。</p>
+      <div class="hero-chips"><span>10 项最终指标</span><span>先逐 case 计算，再配对平均</span><span>8 项 ↑ · 2 项 ↓</span></div>
+      <div class="overview-grid">
+        <a href="#region-pq"><span class="overview-num">01—03</span><strong>目标区域质量</strong><p>框得准吗？<br>描述符合目标图吗？</p><span class="arrow">↘</span></a>
+        <a href="#grounded-pq"><span class="overview-num">04—06</span><strong>来源对应与局部编辑</strong><p>来自哪个 source 实体？<br>局部修改正确吗？</p><span class="arrow">↘</span></a>
+        <a href="#global-hld"><span class="overview-num">07—10</span><strong>全局质量</strong><p>整张图描述完整吗？<br>整体编辑指令正确吗？</p><span class="arrow">↘</span></a>
+      </div>
+    </section>
+
+    <section class="foundation" id="matching">
+      <div class="section-kicker">共同前提</div><h2>先固定几何匹配，再评价语义。</h2>
+      <div class="pipeline">
+        <div><b>1</b><strong>Target 区域匹配</strong><p>预测框 ↔ GT 框<br>Hungarian 一对一匹配<br>IoU ≥ 0.50</p></div>
+        <span class="pipeline-arrow" aria-hidden="true">→</span>
+        <div><b>2</b><strong>Source reference 匹配</strong><p>仅在已匹配 target 对中<br>同一个 source frame<br>reference IoU ≥ 0.50</p></div>
+        <span class="pipeline-arrow" aria-hidden="true">→</span>
+        <div><b>3</b><strong>描述与对应关系评分</strong><p>原始 source / target 图片<br>bbox、描述及冻结 GT<br>评分模型不能重新匹配</p></div>
+      </div>
+      <p class="note">匹配只使用几何，不使用文字相似度或类别。算法最大化总 IoU，低于阈值的边提前置零；未匹配项不贡献分子，但仍进入对应分母。</p>
+      <details class="notation"><summary>公式中的符号是什么意思？</summary>
+        <dl>
+          <dt>N<sub>p</sub> / N<sub>g</sub></dt><dd>预测 / GT 的全部 target 区域数，包含 edit、keep、generated；不含独立 removal 记录。</dd>
+          <dt>E<sub>p</sub> / E<sub>g</sub></dt><dd>预测 / GT 中 target 区域挂载的全部 source-reference 连接数，一个区域可有多条连接。</dd>
+          <dt>M / L</dt><dd>匹配成功的 target 区域对 / source-reference 连接对。</dd>
+          <dt>w<sub>l</sub></dt><dd>min(target IoU, source-reference IoU)：一条连接两端 IoU 的较小值。</dd>
+          <dt>C<sub>l</sub></dt><dd>correspondence_correct：模型判断 source 实体是否确实对应这个 target 实体，取 0 或 1。</dd>
+          <dt>O<sub>m</sub> / O<sub>l</sub></dt><dd>origin_correct：模型判断预测的 edit / keep / generated 来源类型是否符合实际视觉关系，取 0 或 1。</dd>
+        </dl>
+      </details>
+    </section>
+
+    <section id="quality" class="lab quality-lab">
+      <div class="lab-header"><div><div class="section-kicker">交互示例 / 共享评分规则</div><h2>Q：把语义判断变成质量分。</h2></div><span class="badge purple">Luna low</span></div>
+      <p>模型分别判断 <strong>precision（正确性）</strong>与 <strong>recall（覆盖度）</strong>，再计算调和平均。区域描述、局部指令、全局描述和全局指令各自独立评分。</p>
+      <div class="formula">Q = <span class="fraction"><span>2 × p × r</span><span>p + r</span></span><span class="formula-aside">严重错误或 p + r = 0 时，Q = 0</span></div>
+      <div class="quality-grid">
+        <div class="controls">
+          <label for="precision">Precision · 正确性<select id="precision"><option value="0">0 · 缺失／相反／无关</option><option value=".25">0.25 · 正确内容很少</option><option value=".5">0.50 · 部分正确</option><option value=".75" selected>0.75 · 少量问题</option><option value="1">1.00 · 核心事实全部正确</option></select></label>
+          <label for="recall">Recall · 覆盖度<select id="recall"><option value="0">0 · 未覆盖</option><option value=".25">0.25 · 覆盖很少</option><option value=".5" selected>0.50 · 部分覆盖</option><option value=".75">0.75 · 少量遗漏</option><option value="1">1.00 · 核心事实全部覆盖</option></select></label>
+          <label class="check" for="critical"><input type="checkbox" id="critical"><span>存在严重错误 <small>例如方向写反、关键身份错误或重大幻觉</small></span></label>
+        </div>
+        <div class="q-result" aria-live="polite"><span>本次语义质量分</span><output id="q-value">0.600</output><div class="meter"><div id="q-fill"></div></div><p id="q-detail">2 × 0.75 × 0.50 ÷ 1.25 = 0.600</p></div>
+      </div>
+      <p class="note"><strong>p、r 是模型按 rubric 给出的离散档位。</strong>当前流程不先拆成原子事实逐条计数，因此 0.75 不表示严格数出了“75% 的事实正确”。Q 计算则是确定性的。这里的操作仅演示公式，不调用模型，也不是实际 benchmark 结果。</p>
+    </section>
+
+    <div class="group-heading"><span>A / TARGET</span><h2>目标区域质量</h2><p>同时关注几何位置与描述内容。</p></div>
+    <article id="region-pq" class="metric" data-metric="target_region_pq">
+      <div class="metric-heading"><span class="metric-number">01</span><div><h3>Target RegionPQ</h3><p>目标区域的定位精度与覆盖情况</p></div><span class="badge">几何 · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M</sub> IoU<sub>target</sub>(m)</span><span>N<sub>p</sub> + N<sub>g</sub></span></span></div>
+      <p>每个成功匹配的区域，按实际 IoU 贡献分数。框的位置越准确，贡献越高；漏掉、多报或重复的区域仍计入分母。</p>
+      <div class="example"><b>例子</b><span>预测和 GT 各有 2 个区域，匹配 IoU 为 0.9、0.7：<code>2 × (0.9 + 0.7) / 4 = 0.800</code></span></div>
+    </article>
+    <article id="desc-f1" class="metric" data-metric="target_desc_f1">
+      <div class="metric-heading"><span class="metric-number">02</span><div><h3>Target Desc F1</h3><p>目标区域描述的视觉事实质量</p></div><span class="badge purple">模型评分 · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M</sub> Q<sub>desc</sub>(m)</span><span>N<sub>p</sub> + N<sub>g</sub></span></span></div>
+      <p>对匹配区域的 <code>desc</code>，模型检查对象、数量、文字、颜色、方向和关系。precision 衡量事实正确性，recall 衡量重要可见事实的覆盖度，严重错误令该区域 Q 归零。</p>
+      <p class="note">Q<sub>desc</sub> 使用上方的共享 Q 公式。IoU 负责匹配门槛，进入分子的是语义 Q，不再乘一次 IoU。</p>
+      <div class="example"><b>例子</b><span>双方各 2 个区域，Q 分别为 0.6、1：<code>2 × (0.6 + 1) / 4 = 0.800</code></span></div>
+    </article>
+    <article id="embedding-f1" class="metric" data-metric="target_caption_embedding_f1">
+      <div class="metric-heading"><span class="metric-number">03</span><div><h3>Caption Embedding F1</h3><p>匹配区域描述的向量语义相似度</p></div><span class="badge">Embedding · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M</sub> clip(cos(v<sub>p</sub>, v<sub>g</sub>), 0, 1)</span><span>N<sub>p</sub> + N<sub>g</sub></span></span></div>
+      <p>将预测与 GT 的区域 <code>desc</code> 分别编码为向量，比较余弦相似度并裁剪到 [0, 1]。空描述贡献 0，漏检与多报通过分母扣分。</p>
+      <details><summary>Embedding 的固定配置</summary><p>模型：<code>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2</code><br>Revision：<code>e8f8c211226b894fcb81acc59f3b34ba3efd5f42</code><br>最大 512 tokens；attention-mask mean pooling；L2 归一化。只比较匹配区域的 desc，不编码整个 JSON。向量相似不保证细节事实正确，需结合 Target Desc F1 阅读。</p></details>
+    </article>
+
+    <div class="group-heading"><span>B / SOURCE → TARGET</span><h2>来源对应与局部编辑</h2><p>定位、实体对应和编辑指令，是不同的判断。</p></div>
+    <article id="grounded-pq" class="metric" data-metric="reference_grounded_pq">
+      <div class="metric-heading"><span class="metric-number">04</span><div><h3>Reference GroundedPQ</h3><p>两端定位准确，且来源实体对应正确</p></div><span class="badge purple">几何 × 模型 · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>l∈L</sub> w<sub>l</sub> × C<sub>l</sub></span><span>E<sub>p</sub> + E<sub>g</sub></span></span><span class="formula-aside">w = min(IoU<sub>target</sub>, IoU<sub>source</sub>)</span></div>
+      <p>两端 bbox 的较小 IoU 代表定位质量；C 表示 source reference 是否确实指向对应的来源实体。即使框很准，C = 0 时这条连接也贡献 0。</p>
+      <details open><summary>“同一个来源实体”如何判断？</summary><p>几何匹配完成后，Luna low 接收完整 source / target 图片及文本形式的 bbox、区域描述、编辑信息和 GT 上下文，判断来源框指向的是否是 target 实体真实的来源，而不是背景或另一件相似物体。它输出 <code>correspondence_correct</code> 布尔值和文字证据。</p><p>例如杯子变色、移动后仍可对应同一实体；另一只相似杯子不能仅凭外观接近就算正确。这是模型视觉判断，没有独立验证的实例 ID 或单独身份置信度。重复对象、遮挡或大幅变化可能带来歧义。</p></details>
+    </article>
+    <article id="local-instruction" class="metric" data-metric="local_edit_instruction_f1">
+      <div class="metric-heading"><span class="metric-number">05</span><div><h3>Local Edit Instruction F1</h3><p>局部区域“如何修改”的指令质量</p></div><span class="badge purple">模型评分 · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M<sub>edit</sub></sub> Q<sub>instruction</sub>(m) × O<sub>m</sub></span><span>N<sub>p</sub><sup>edit</sup> + N<sub>g</sub><sup>edit</sup></span></span></div>
+      <p>只对预测与 GT 都标为 <code>edit</code> 的匹配区域计入分子。模型评估编辑对象、范围、修改前后状态、方向、属性和保留约束，得到 Q<sub>instruction</sub>；O 判断 edit 来源类型是否正确。</p>
+      <div class="example"><b>例子</b><span>实际需要“杯子变红并右移”，预测只写“变红”。假设模型给 p = 1、r = 0.5、无严重错误，则 Q ≈ 0.667；方向写反并被判严重错误时 Q = 0。</span></div>
+      <p class="note">分母包含双方所有 edit 区域。这个指标不显式乘 source IoU 或 C，不能单独证明来源对应正确。keep、generated 的局部指令与独立 removal 记录不参与。</p>
+    </article>
+    <article id="joint-f1" class="metric" data-metric="editing_edge_joint_f1">
+      <div class="metric-heading"><span class="metric-number">06</span><div><h3>Editing Edge Joint F1</h3><p>整条编辑连接各环节同时成立的质量</p></div><span class="badge purple">联合评分 · ↑</span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>l∈L</sub> w<sub>l</sub> × C<sub>l</sub> × O<sub>l</sub> × J<sub>l</sub></span><span>E<sub>p</sub> + E<sub>g</sub></span></span></div>
+      <div class="factor-grid"><div><b>w</b><span>两端定位<br>取较小 IoU</span></div><div><b>C</b><span>来源实体<br>对应正确</span></div><div><b>O</b><span>来源类型<br>判断正确</span></div><div><b>J</b><span>局部操作<br>质量正确</span></div></div>
+      <p>GT 为 <code>edit</code> 时，J = Q<sub>instruction</sub>；GT 为 <code>keep</code> 时，J = O。由于 O 为布尔值，keep 的 O × O = O。任何必要因素为 0，这条连接的贡献就为 0。</p>
+      <p class="note">未匹配或重复连接仍在分母中。无 reference 的 generated 区域和独立 removal 记录不属于 edge 指标。该分数不额外乘 Target Desc 的质量分。</p>
+    </article>
+
+    <section id="joint-lab" class="lab joint-lab">
+      <div class="lab-header"><div><div class="section-kicker">交互示例 / 一条候选连接</div><h2>哪个环节，改变了最终分数？</h2></div><button id="reset-joint" type="button" class="text-button">重置示例 ↺</button></div>
+      <p>这里固定只有一条候选匹配连接。增加总连接数，表示增加未匹配项；其他连接不会贡献分子。edit 的 J 使用上方 Q 计算器的值。</p>
+      <div class="joint-grid">
+        <div class="controls">
+          <label for="target-iou">Target IoU <output id="target-iou-value">0.80</output><input id="target-iou" type="range" min="0" max="1" step=".01" value=".8"></label>
+          <label for="source-iou">Source reference IoU <output id="source-iou-value">0.70</output><input id="source-iou" type="range" min="0" max="1" step=".01" value=".7"></label>
+          <label for="origin">GT 来源类型<select id="origin"><option value="edit">edit · J = Q_instruction</option><option value="keep">keep · J = O</option></select></label>
+          <div class="count-row"><label for="ep">预测连接数 E<sub>p</sub><input id="ep" type="number" min="1" max="20" value="1"></label><label for="eg">GT 连接数 E<sub>g</sub><input id="eg" type="number" min="1" max="20" value="1"></label></div>
+          <label class="check" for="correspondence"><input id="correspondence" type="checkbox" checked><span>C = 1 · 来源实体对应正确</span></label>
+          <label class="check" for="origin-correct"><input id="origin-correct" type="checkbox" checked><span>O = 1 · 来源类型判断正确</span></label>
+        </div>
+        <div class="joint-results" aria-live="polite">
+          <div id="match-status" class="match-status">几何匹配成立 · 两端 IoU ≥ 0.50</div>
+          <div class="joint-score"><span>Reference GroundedPQ</span><output id="grounded-value">0.700</output><small id="grounded-detail"></small></div>
+          <div class="joint-score accent"><span>Editing Edge Joint F1</span><output id="joint-value">0.420</output><small id="joint-detail"></small></div>
+          <p id="joint-explanation" class="note"></p>
+        </div>
+      </div>
+    </section>
+
+    <div class="group-heading"><span>C / GLOBAL</span><h2>全局描述与整体编辑</h2><p>整段文本独立评分，描述内容与编辑过程分别衡量。</p></div>
+    <article id="global-hld" class="metric" data-metric="global_description_semantic_f1">
+      <div class="metric-heading"><span class="metric-number">07</span><div><h3>Global HLD F1</h3><p>整张目标图的描述质量</p></div><span class="badge purple">模型评分 · ↑</span></div>
+      <div class="formula">Q<sub>global description</sub></div>
+      <p>直接评价 <code>high_level_description</code> 整段文本。以 target 图片为最终依据，参考 GT 描述，判断场景、对象、数量、文字、颜色、布局和关系是否正确、重要信息是否完整。</p>
+      <p class="note">对该段文本单独给 p、r 和 critical_error，再套用 Q 公式。它不由局部区域分数平均得出；与其他 scope 的严重错误标记相互独立。</p>
+    </article>
+    <article id="global-instruction" class="metric" data-metric="global_instruction_semantic_f1">
+      <div class="metric-heading"><span class="metric-number">08</span><div><h3>Global Instruction F1</h3><p>整体 source → target 编辑指令质量</p></div><span class="badge purple">模型评分 · ↑</span></div>
+      <div class="formula">Q<sub>global instruction</sub></div>
+      <p>直接评价 <code>normalized_edit_instruction</code>。precision 判断所描述的修改是否真实、对象和方向是否正确；recall 判断新增、删除、属性变化、移动及布局调整等重要变化是否覆盖完整。</p>
+      <p class="note">单独计算全局指令的 Q。模型查看 source / target 和 GT 上下文；原始用户指令及候选模型身份未提供给评分模型。</p>
+    </article>
+    <article id="hld-error" class="metric" data-metric="global_description_critical_error">
+      <div class="metric-heading"><span class="metric-number">09</span><div><h3>Global HLD 严重错误率</h3><p>全局目标描述发生严重错误的 case 比例</p></div><span class="badge amber">错误率 · ↓</span></div>
+      <div class="formula"><span class="fraction"><span>Σ<sub>i∈S</sub> 1[global_description.critical_error]</span><span>|S|</span></span></div>
+      <p>每个 case 的全局描述严重错误标记为 true 记 1，否则记 0。在双方都有有效分数的相同 case 集合 S 上取平均。典型严重错误包括关键身份、数量、显著文字错误或重大幻觉。</p>
+      <div class="example"><b>例子</b><span>100 个有效配对 cases 中有 8 个被标记：<code>8 / 100 = 0.080</code>。被标记的 case，其 Global HLD F1 同时归零。</span></div>
+    </article>
+    <article id="instruction-error" class="metric" data-metric="global_instruction_critical_error">
+      <div class="metric-heading"><span class="metric-number">10</span><div><h3>Global Instruction 严重错误率</h3><p>全局编辑指令发生严重错误的 case 比例</p></div><span class="badge amber">错误率 · ↓</span></div>
+      <div class="formula"><span class="fraction"><span>Σ<sub>i∈S</sub> 1[global_instruction.critical_error]</span><span>|S|</span></span></div>
+      <p>对全局指令的严重错误标记求平均，越低越好。修改方向写反、编辑对象错误、关键数量或文字错误、否定关系错误及重大虚构修改都可能被标记。</p>
+      <p class="note">该标记只决定这个 case 的全局指令严重错误率及其 Global Instruction Q，不会自动改变 HLD 的错误标记。</p>
+    </article>
+
+    <section id="aggregation" class="foundation">
+      <div class="section-kicker">READ THE REPORT</div><h2>每一行，使用同一组有效配对 cases。</h2>
+      <div class="formula">宏平均 = <span class="fraction"><span>Σ<sub>i∈S</sub> metric(case<sub>i</sub>)</span><span>|S|</span></span></div>
+      <div class="reading-grid">
+        <div><h3>先计算，再平均</h3><p>每个 case 权重相同。先把各 case 的 p、r 转为 Q，再求平均；不把所有区域合在一起计算，也不先平均 p、r。</p></div>
+        <div><h3>每项有自己的配对 N</h3><p>两组均有非空分数才进入该行。均值与 delta 使用相同 cases。几何和 embedding 不依赖 judge 成功，保留完整静态覆盖。</p></div>
+        <div><h3>零分与 N/A 有区别</h3><p>双方 target 区域数都为零时，前三项为 0。双方没有 reference 时，edge 指标为 N/A；双方没有 edit 区域时，Local Edit Instruction F1 为 N/A。</p></div>
+        <div><h3>失败记录如何处理</h3><p>原生无效预测按空预测计分，适用质量分为 0。API 或评分校验失败保留为缺失语义分，不伪装成零分。原生失败的 critical_error 标记为 false，所以严重错误率不等于总失败率。</p></div>
+      </div>
+      <p class="note">GT 是冻结的模型辅助参考（Astra medium），不是人工认证真值。477 cases 来自原始 500-case 请求中已验证的 GT 子集。最终报告只展示选定十项指标；底层审计产物保留原冻结评分字段，便于复核。</p>
+    </section>
+    <footer>
+      <div><strong>Editing Caption Evaluation</strong><p>10 metrics · selected-ten-v1<br>页面仅解释计算口径，计算器中的数值均为示例。</p></div>
+      <div class="footer-links"><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/benchmark/metrics.py" target="_blank" rel="noopener">指标实现 ↗</a><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/benchmark/bench_contracts.py" target="_blank" rel="noopener">Judge 提示词 ↗</a><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/docs/metrics.md" target="_blank" rel="noopener">计算文档 ↗</a><button class="text-button" type="button" id="print-page">打印 / 保存 PDF</button></div>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

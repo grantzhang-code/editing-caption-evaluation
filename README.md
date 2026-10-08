@@ -9,6 +9,31 @@ and a synthetic example. The complete dataset is stored in S3.
 语义评分使用 Luna low。checkpoint-11k 的 475 条成功输出、1 条 schema 错误、
 1 条截断输出全部保留。失败输出按空预测评分，不从分母中删除。
 
+## Final metric selection
+
+Read the [interactive Chinese metric guide](https://grantzhang-alpha-document.highway.canva-internal.dev/)
+(Canva WARP access), including formulas, matching rules, model judgment criteria,
+examples, a Q calculator, and an Editing Edge Joint F1 calculator.
+The self-contained page is also in [site/index.html](site/index.html).
+
+Final reports retain these **ten metrics**, in this order:
+
+1. Target RegionPQ
+2. Target Desc F1
+3. Caption Embedding F1
+4. Reference GroundedPQ
+5. Local Edit Instruction F1
+6. Editing Edge Joint F1
+7. Global HLD F1
+8. Global Instruction F1
+9. Global HLD critical-error rate
+10. Global Instruction critical-error rate
+
+Both displayed means and their delta use the same applicable paired cases per
+metric. Static scores retain full coverage when judge tasks fail. The selection
+applies to final summaries and CSV metric columns; frozen raw score artifacts
+remain available for audit. See [the metric contract](docs/metrics.md).
+
 ## Dataset
 
 ```text
