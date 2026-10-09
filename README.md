@@ -29,11 +29,10 @@ Final reports retain these **ten metrics**, in this order:
 9. Global HLD critical-error rate
 10. Global Instruction critical-error rate
 
-The guide additionally documents **11. Removal GroundedPQ** as a
+The guide additionally documents **11. Removal PQ** as a
 [new metric design](https://grantzhang-alpha-document.highway.canva-internal.dev/#removal-joint).
-It evaluates source deletion boxes and actual deletion correspondence. Q_remove
-is fixed to 1; local removal instruction text is not scored. Its proposed micro
-aggregation includes false deletions
+It compares source deletion boxes with GT using IoU and one-to-one matching,
+without model scoring. Its proposed micro aggregation includes false deletions
 on GT-negative cases. This metric is not implemented in the evaluator and has
 no score in the existing 477-case results.
 

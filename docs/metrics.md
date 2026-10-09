@@ -3,7 +3,7 @@
 Final reports retain the following **ten metrics**, in this order. The interactive
 Chinese guide in [site/index.html](../site/index.html) includes worked examples,
 source correspondence judgment, a Q calculator, and a Joint F1 calculator.
-It also documents Removal GroundedPQ as a proposed eleventh metric, described below.
+It also documents Removal PQ as a proposed eleventh metric, described below.
 
 The scoring protocol remains `editing-caption-eval477-luna-low-v1-20261008`.
 Reporting selection is versioned as `selected-ten-v1`; it changes the reported
@@ -97,62 +97,29 @@ critical-error rates are not total failure rates. Provider/validation failures
 remain missing semantic scores and are not converted to zero. A complete run
 requires all 954 semantic and 954 static results for the frozen 477-case dataset.
 
-## Proposed eleventh metric: Removal GroundedPQ
+## Proposed eleventh metric: Removal PQ
 
-**Design only.** This metric is not implemented in the evaluator or included in
-the existing 477-case results. The ten implemented metric formulas and report
-selection remain unchanged.
+**Design only:** this metric is not implemented or included in the existing
+477-case results. It is a deterministic measure of agreement with GT deletion
+boxes; it requires no model judgment or local instruction score.
 
-Each source reference in an independent removal record is one deletion item;
-multiple references are expanded separately. The removal item's operation is already
-explicitly deletion.
-Within the same source frame, match predicted and GT deletion boxes one-to-one
-using threshold-gated Hungarian assignment at source IoU >= 0.50. No target box
-or target IoU is required. Unmatched and duplicate items stay in the denominator.
-
-For a case with Dp predicted and Dg GT deletion items:
+1. Treat each source reference in an independent removal record as one deletion
+   item. Dp and Dg count all predicted and GT items, including duplicates.
+2. Match source boxes within the same source frame using threshold-gated Hungarian
+   assignment at IoU >= 0.50, maximizing total IoU. No target box is required.
+3. Compute:
 
 ```text
-Removal GroundedPQ = 2 * sum(source_IoU * C) / (Dp + Dg)
+Removal PQ = 2 * sum(matched source_IoU) / (Dp + Dg)
 ```
 
-C is a model's boolean judgment that the source item is the correct entity or
-component and is actually removed in the target, rather than merely moved or
-modified. C still requires a new model-assisted visual judgment; existing global
-instruction scores cannot substitute for it.
+Unmatched or duplicate items remain in the denominator. For Dp=Dg=1 and source
+IoU=.8, the score is .8. Its interpretation depends on GT correctness: it does
+not independently verify deletion from target pixels or score instruction text.
 
-Q_remove is fixed to 1 and omitted from the formula. Local deletion instruction
-precision, recall and text quality are not evaluated. Incorrect or missing local
-instruction text is therefore not independently penalized by this metric; missing
-or incorrect structured deletion items are still penalized through matching, the
-denominator and C. Global Instruction F1 continues to evaluate the global text,
-but does not automatically validate every local removal instruction. An additional
-edit/keep/generated origin factor is not used for explicit removal items.
-
-If Dp+Dg=0, the per-case metric is N/A. If exactly one side has deletion items,
-there are no matches and the score is zero. With Dp=Dg=1, source IoU=.8 and C=1,
-the score is .8. If one additional false deletion is predicted (Dp=2, Dg=1),
-it becomes 2*.8/3, approximately .533. If C=0, that match contributes zero.
-
-### Proposed aggregation: micro over a fixed common case set
-
-For each variant, accumulate the numerator and denominator across the same case
-set S before division:
-
-```text
-Removal GroundedPQ micro =
-  2 * sum_over_cases_and_matches(source_IoU * C)
-  / sum_over_cases(Dp + Dg)
-```
-
-This includes a GT-negative case where one variant falsely predicts a removal,
-even if the other variant correctly predicts none. Do not filter to cases where
-both per-case values are non-null: that would discard the false-positive penalty.
-Both-empty cases contribute zero to both totals. If a variant's total denominator
-is zero its score is N/A. Missing required judge results make the comparison
-incomplete; do not silently treat provider failures as zero.
-
-This proposed deletion-item micro average is distinct from the existing ten
-metrics' paired case-level macro averages. Report the common case count,
-predicted and GT deletion counts, matched counts, unmatched predicted/GT counts,
-and false deletion counts on GT-negative cases alongside it.
+For the headline result, use deletion-item **micro** aggregation over the same
+fixed case set: sum matched IoUs and both item counts across cases, then apply
+the formula. Include GT-negative cases with false predicted deletions; do not
+filter by both variants having non-null per-case scores. If the denominator is
+zero, return N/A. This differs from the ten existing metrics' case-level macro
+averages. Report GT, predicted and matched item counts alongside the score.
