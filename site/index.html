@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Editing Caption 十一项指标说明：十项现有评分与新增 Removal Joint F1 设计，包含计算公式、匹配规则及交互示例。">
+  <meta name="description" content="Editing Caption 十一项指标说明：十项现有评分与新增 Removal GroundedPQ 设计，包含计算公式、匹配规则及交互示例。">
   <title>Editing Caption · 十一项指标说明</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
@@ -35,7 +35,7 @@
       <a href="#hld-error"><span>09</span> Global HLD 严重错误率</a>
       <a href="#instruction-error"><span>10</span> Global Instruction 严重错误率</a>
       <span class="nav-group">删除操作 · 新增设计</span>
-      <a href="#removal-joint"><span>11</span> Removal Joint F1</a>
+      <a href="#removal-joint"><span>11</span> Removal GroundedPQ</a>
       <a href="#aggregation">汇总与适用范围</a>
     </nav>
     <div class="sidebar-note">GT · Astra medium<br>Judge · Luna low<br><span>477 cases · paired evaluation</span></div>
@@ -50,7 +50,7 @@
         <a href="#region-pq"><span class="overview-num">01—03</span><strong>目标区域质量</strong><p>框得准吗？<br>描述符合目标图吗？</p><span class="arrow">↘</span></a>
         <a href="#grounded-pq"><span class="overview-num">04—06</span><strong>来源对应与局部编辑</strong><p>来自哪个 source 实体？<br>局部修改正确吗？</p><span class="arrow">↘</span></a>
         <a href="#global-hld"><span class="overview-num">07—10</span><strong>全局质量</strong><p>整张图描述完整吗？<br>整体编辑指令正确吗？</p><span class="arrow">↘</span></a>
-        <a href="#removal-joint"><span class="overview-num">11 / NEW DESIGN</span><strong>删除操作质量</strong><p>删除对象找对了吗？<br>删除指令完整吗？</p><span class="arrow">↘</span></a>
+        <a href="#removal-joint"><span class="overview-num">11 / NEW DESIGN</span><strong>删除操作质量</strong><p>删除对象找对了吗？<br>删除区域框准了吗？</p><span class="arrow">↘</span></a>
       </div>
     </section>
 
@@ -131,7 +131,7 @@
       <div class="formula"><span class="fraction"><span>2 × Σ<sub>l∈L</sub> w<sub>l</sub> × C<sub>l</sub> × O<sub>l</sub> × J<sub>l</sub></span><span>E<sub>p</sub> + E<sub>g</sub></span></span></div>
       <div class="factor-grid"><div><b>w</b><span>两端定位<br>取较小 IoU</span></div><div><b>C</b><span>来源实体<br>对应正确</span></div><div><b>O</b><span>来源类型<br>判断正确</span></div><div><b>J</b><span>局部操作<br>质量正确</span></div></div>
       <p>GT 为 <code>edit</code> 时，J = Q<sub>instruction</sub>；GT 为 <code>keep</code> 时，J = O。由于 O 为布尔值，keep 的 O × O = O。任何必要因素为 0，这条连接的贡献就为 0。</p>
-      <p class="note">未匹配或重复连接仍在分母中。无 reference 的 generated 区域和独立 removal 记录不属于 edge 指标。删除操作的独立评价见新增的 <a href="#removal-joint">Removal Joint F1</a> 设计。该分数不额外乘 Target Desc 的质量分。</p>
+      <p class="note">未匹配或重复连接仍在分母中。无 reference 的 generated 区域和独立 removal 记录不属于 edge 指标。删除操作的独立评价见新增的 <a href="#removal-joint">Removal GroundedPQ</a> 设计。该分数不额外乘 Target Desc 的质量分。</p>
     </article>
 
     <section id="joint-lab" class="lab joint-lab">
@@ -181,22 +181,22 @@
       <p class="note">该标记只决定这个 case 的全局指令严重错误率及其 Global Instruction Q，不会自动改变 HLD 的错误标记。</p>
     </article>
 
-    <div class="group-heading"><span>D / REMOVAL</span><h2>删除操作质量</h2><p>在 source 中定位被删除的内容，再判断实际删除关系与局部指令。</p></div>
-    <article id="removal-joint" class="metric" data-metric="removal_joint_f1" data-status="proposed">
-      <div class="metric-heading"><span class="metric-number">11</span><div><h3>Removal Joint F1</h3><p>删除区域定位、删除关系与局部删除指令的联合质量</p></div><span class="badge purple">新增设计 · ↑</span></div>
+    <div class="group-heading"><span>D / REMOVAL</span><h2>删除操作质量</h2><p>在 source 中定位被删除的内容，再判断实际删除关系是否成立。</p></div>
+    <article id="removal-joint" class="metric" data-metric="removal_grounded_pq" data-status="proposed">
+      <div class="metric-heading"><span class="metric-number">11</span><div><h3>Removal GroundedPQ</h3><p>删除区域的定位质量与实际删除对应正确性</p></div><span class="badge purple">新增设计 · ↑</span></div>
       <div class="proposal-note"><strong>当前状态：指标设计已补充，评分尚未实现。</strong>现有 477-case 结果未计算此项。下方为建议的计算与汇总口径，示例不是实际评分结果。</div>
-      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M<sub>remove</sub></sub> IoU<sub>source</sub>(m) × C<sub>m</sub> × Q<sub>remove</sub>(m)</span><span>D<sub>p</sub> + D<sub>g</sub></span></span></div>
+      <div class="formula"><span class="fraction"><span>2 × Σ<sub>m∈M<sub>remove</sub></sub> IoU<sub>source</sub>(m) × C<sub>m</sub></span><span>D<sub>p</sub> + D<sub>g</sub></span></span></div>
       <p>全局指令可以正确写出“删除杯子”，但结构化 <code>remove</code> 记录仍可能遗漏或框错。这项指标直接评价独立 removal 记录，补充现有 Editing Edge Joint F1 的覆盖范围。</p>
-      <details open><summary>第一步：确定删除项并做 source 匹配</summary><p>每个 removal 记录中的 source reference 作为一个删除项；同一记录有多个 references 时分别展开，并继承该记录的删除指令。D<sub>p</sub>、D<sub>g</sub> 为双方全部删除项数量。匹配限于相同 source frame，以 source bbox IoU ≥ 0.50 做 Hungarian 一对一匹配，最大化总 IoU。重复或未匹配的删除项仍计入分母。</p><p>删除对象没有对应的 target 区域，因此这里不要求 target bbox，也不使用 target IoU。</p></details>
+      <details open><summary>第一步：确定删除项并做 source 匹配</summary><p>每个 removal 记录中的 source reference 作为一个删除项；同一记录有多个 references 时分别展开。D<sub>p</sub>、D<sub>g</sub> 为双方全部删除项数量。匹配限于相同 source frame，以 source bbox IoU ≥ 0.50 做 Hungarian 一对一匹配，最大化总 IoU。重复或未匹配的删除项仍计入分母。</p><p>删除对象没有对应的 target 区域，因此这里不要求 target bbox，也不使用 target IoU。</p></details>
       <details open><summary>第二步：判断是否找对了实际被删除的内容</summary><p>C<sub>m</sub> 为模型的 0/1 判断：预测 source 框是否指向与 GT 删除项对应的对象或组件，且该内容在 target 中确实被删除。对象只是移动、变色或修改后仍然存在时，不应判作删除。模型需要同时查看 source、target 和冻结 GT，输出判断证据。</p><p>这仍是模型辅助的视觉判断；裁剪、遮挡和高度相似对象可能造成歧义，不能将 GT 字段相等直接当作删除关系正确。</p></details>
-      <details open><summary>第三步：计算局部删除指令质量 Q_remove</summary><p>模型分别评价 precision（删除对象、范围和保留约束是否正确）与 recall（应删除的内容与必要约束是否覆盖完整）。p、r 沿用 <code>{0, 0.25, 0.5, 0.75, 1}</code> 的 rubric，Q<sub>remove</sub> = 2pr / (p + r)。严重错误或 p + r = 0 时为 0；缺失删除指令的 Q 为 0。</p><p>删除操作已经由 removal 项定义，无需再乘一次 edit / keep / generated 类型因子 O。找错对象或错误删除保留内容时，C 或 Q 为零，整项贡献为零。</p></details>
-      <div class="example"><b>例子</b><span>双方各有 1 个删除项：source IoU = 0.8、C = 1，指令 p = 1、r = 0.5、无严重错误。Q = 2/3，因此 <code>2 × 0.8 × 1 × (2/3) / (1 + 1) ≈ 0.533</code>。</span></div>
+      <details open><summary>评价范围：Q_remove 固定为 1，不单独评价局部删除指令</summary><p>删除操作已经由 removal 项定义，因此将 Q<sub>remove</sub> 固定为 1，从公式中省略。评分只保留 source bbox IoU 与实际删除对应判断 C；C 仍需要模型结合 source、target 和冻结 GT 作视觉判断。无需计算局部删除指令的 precision、recall 或质量 Q，也不额外乘 edit / keep / generated 类型因子 O。</p><p>局部删除指令文本的错误或遗漏，不会被此指标单独惩罚。Global Instruction F1 继续评价全局编辑指令，但不会自动检查每条局部删除指令。结构化删除项缺失、重复、框错或找错对象，仍会通过匹配、分母和 C 扣分。</p></details>
+      <div class="example"><b>例子</b><span>双方各有 1 个删除项：source IoU = 0.8、C = 1，则 <code>2 × 0.8 × 1 / (1 + 1) = 0.800</code>。若 C = 0，该项贡献为 0；若额外多报 1 个删除项，则分数为 <code>2 × 0.8 / (2 + 1) ≈ 0.533</code>。</span></div>
       <div class="reading-grid">
         <div><h3>漏删与误报删除都扣分</h3><p>GT 有删除、预测遗漏：GT 删除项只进入分母。GT 没有删除、预测却报告删除：多出的预测项只进入分母。重复框同样增加分母，但一对一匹配不会重复加分。</p></div>
         <div><h3>双方均无删除时</h3><p>单 case 的 D<sub>p</sub> + D<sub>g</sub> = 0，此项为 N/A，不记成 0 或 1。在下方 micro 汇总中，它对分子和分母均贡献 0。</p></div>
       </div>
       <details open><summary>汇总建议：使用同一 case 集合，按删除项做 micro 统计</summary>
-        <div class="formula">Removal Joint F1<sub>micro</sub> = <span class="fraction"><span>2 × Σ<sub>i∈S</sub> Σ<sub>m∈M<sub>remove,i</sub></sub> IoU<sub>source</sub>(m) × C<sub>m</sub> × Q<sub>remove</sub>(m)</span><span>Σ<sub>i∈S</sub> (D<sub>p,i</sub> + D<sub>g,i</sub>)</span></span></div>
+        <div class="formula">Removal GroundedPQ<sub>micro</sub> = <span class="fraction"><span>2 × Σ<sub>i∈S</sub> Σ<sub>m∈M<sub>remove,i</sub></sub> IoU<sub>source</sub>(m) × C<sub>m</sub></span><span>Σ<sub>i∈S</sub> (D<sub>p,i</sub> + D<sub>g,i</sub>)</span></span></div>
         <p>两组都在相同、固定的 case 集合 S 上分别累计分子与分母，再计算比值。没有 GT 删除但有预测删除的 case 必须保留；不使用“双方 per-case 指标都非空”的交集过滤，否则会漏掉一组误报删除、另一组正确不删除的惩罚。</p>
         <p>这种 micro 口径按删除项汇总，与前 10 项的 case 级宏平均不同。若整个集合的分母为 0，该组分数为 N/A；某组缺少必要的模型判断时，标记结果未完成，不将失败默认为 0，也不声称得到了完整比较。</p>
       </details>
@@ -212,10 +212,10 @@
         <div><h3>零分与 N/A 有区别</h3><p>双方 target 区域数都为零时，前三项为 0。双方没有 reference 时，edge 指标为 N/A；双方没有 edit 区域时，Local Edit Instruction F1 为 N/A。</p></div>
         <div><h3>失败记录如何处理</h3><p>原生无效预测按空预测计分，适用质量分为 0。API 或评分校验失败保留为缺失语义分，不伪装成零分。原生失败的 critical_error 标记为 false，所以严重错误率不等于总失败率。</p></div>
       </div>
-      <p class="note">本节宏平均规则适用于前 10 项现有指标；新增 Removal Joint F1 建议使用上节的删除项 micro 口径，以纳入误报删除。GT 是冻结的模型辅助参考（Astra medium），不是人工认证真值。477 cases 来自原始 500-case 请求中已验证的 GT 子集。当前评分报告仍输出已实现的十项指标；第 11 项尚未产生实际评分。</p>
+      <p class="note">本节宏平均规则适用于前 10 项现有指标；新增 Removal GroundedPQ 建议使用上节的删除项 micro 口径，以纳入误报删除。GT 是冻结的模型辅助参考（Astra medium），不是人工认证真值。477 cases 来自原始 500-case 请求中已验证的 GT 子集。当前评分报告仍输出已实现的十项指标；第 11 项尚未产生实际评分。</p>
     </section>
     <footer>
-      <div><strong>Editing Caption Evaluation</strong><p>10 implemented metrics + Removal Joint F1 design<br>页面仅解释计算口径，计算器与删除指标中的数值均为示例。</p></div>
+      <div><strong>Editing Caption Evaluation</strong><p>10 implemented metrics + Removal GroundedPQ design<br>页面仅解释计算口径，计算器与删除指标中的数值均为示例。</p></div>
       <div class="footer-links"><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/benchmark/metrics.py" target="_blank" rel="noopener">指标实现 ↗</a><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/benchmark/bench_contracts.py" target="_blank" rel="noopener">Judge 提示词 ↗</a><a href="https://github.com/grantzhang-code/editing-caption-evaluation/blob/main/docs/metrics.md" target="_blank" rel="noopener">计算文档 ↗</a><button class="text-button" type="button" id="print-page">打印 / 保存 PDF</button></div>
     </footer>
   </main>

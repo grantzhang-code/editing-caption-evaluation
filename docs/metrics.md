@@ -3,7 +3,7 @@
 Final reports retain the following **ten metrics**, in this order. The interactive
 Chinese guide in [site/index.html](../site/index.html) includes worked examples,
 source correspondence judgment, a Q calculator, and a Joint F1 calculator.
-It also documents Removal Joint F1 as a proposed eleventh metric, described below.
+It also documents Removal GroundedPQ as a proposed eleventh metric, described below.
 
 The scoring protocol remains `editing-caption-eval477-luna-low-v1-20261008`.
 Reporting selection is versioned as `selected-ten-v1`; it changes the reported
@@ -97,14 +97,15 @@ critical-error rates are not total failure rates. Provider/validation failures
 remain missing semantic scores and are not converted to zero. A complete run
 requires all 954 semantic and 954 static results for the frozen 477-case dataset.
 
-## Proposed eleventh metric: Removal Joint F1
+## Proposed eleventh metric: Removal GroundedPQ
 
 **Design only.** This metric is not implemented in the evaluator or included in
 the existing 477-case results. The ten implemented metric formulas and report
 selection remain unchanged.
 
 Each source reference in an independent removal record is one deletion item;
-multiple references are expanded separately and inherit the record's instruction.
+multiple references are expanded separately. The removal item's operation is already
+explicitly deletion.
 Within the same source frame, match predicted and GT deletion boxes one-to-one
 using threshold-gated Hungarian assignment at source IoU >= 0.50. No target box
 or target IoU is required. Unmatched and duplicate items stay in the denominator.
@@ -112,22 +113,26 @@ or target IoU is required. Unmatched and duplicate items stay in the denominator
 For a case with Dp predicted and Dg GT deletion items:
 
 ```text
-Removal Joint F1 = 2 * sum(source_IoU * C * Q_remove) / (Dp + Dg)
+Removal GroundedPQ = 2 * sum(source_IoU * C) / (Dp + Dg)
 ```
 
 C is a model's boolean judgment that the source item is the correct entity or
 component and is actually removed in the target, rather than merely moved or
-modified. Q_remove evaluates the local removal instruction: the correct subject,
-scope, required removal and preserved constraints. Use the existing discrete
-precision/recall rubric and harmonic-mean Q formula; critical errors, missing
-instructions or p+r=0 give Q=0. This requires new semantic judgments; existing
-global instruction scores cannot be substituted for them. An additional edit/
-keep/generated origin factor is not used for these explicit removal items.
+modified. C still requires a new model-assisted visual judgment; existing global
+instruction scores cannot substitute for it.
+
+Q_remove is fixed to 1 and omitted from the formula. Local deletion instruction
+precision, recall and text quality are not evaluated. Incorrect or missing local
+instruction text is therefore not independently penalized by this metric; missing
+or incorrect structured deletion items are still penalized through matching, the
+denominator and C. Global Instruction F1 continues to evaluate the global text,
+but does not automatically validate every local removal instruction. An additional
+edit/keep/generated origin factor is not used for explicit removal items.
 
 If Dp+Dg=0, the per-case metric is N/A. If exactly one side has deletion items,
-there are no matches and the score is zero. A worked example with Dp=Dg=1,
-source IoU=.8, C=1 and instruction p=1, r=.5 gives Q=2/3 and score approximately
-.533.
+there are no matches and the score is zero. With Dp=Dg=1, source IoU=.8 and C=1,
+the score is .8. If one additional false deletion is predicted (Dp=2, Dg=1),
+it becomes 2*.8/3, approximately .533. If C=0, that match contributes zero.
 
 ### Proposed aggregation: micro over a fixed common case set
 
@@ -135,8 +140,8 @@ For each variant, accumulate the numerator and denominator across the same case
 set S before division:
 
 ```text
-Removal Joint F1 micro =
-  2 * sum_over_cases_and_matches(source_IoU * C * Q_remove)
+Removal GroundedPQ micro =
+  2 * sum_over_cases_and_matches(source_IoU * C)
   / sum_over_cases(Dp + Dg)
 ```
 
