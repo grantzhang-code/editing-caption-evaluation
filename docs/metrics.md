@@ -3,6 +3,7 @@
 Final reports retain the following **ten metrics**, in this order. The interactive
 Chinese guide in [site/index.html](../site/index.html) includes worked examples,
 source correspondence judgment, a Q calculator, and a Joint F1 calculator.
+It also documents Removal Joint F1 as a proposed eleventh metric, described below.
 
 The scoring protocol remains `editing-caption-eval477-luna-low-v1-20261008`.
 Reporting selection is versioned as `selected-ten-v1`; it changes the reported
@@ -95,3 +96,58 @@ scores. Their critical-error flags are false in this protocol, so the two
 critical-error rates are not total failure rates. Provider/validation failures
 remain missing semantic scores and are not converted to zero. A complete run
 requires all 954 semantic and 954 static results for the frozen 477-case dataset.
+
+## Proposed eleventh metric: Removal Joint F1
+
+**Design only.** This metric is not implemented in the evaluator or included in
+the existing 477-case results. The ten implemented metric formulas and report
+selection remain unchanged.
+
+Each source reference in an independent removal record is one deletion item;
+multiple references are expanded separately and inherit the record's instruction.
+Within the same source frame, match predicted and GT deletion boxes one-to-one
+using threshold-gated Hungarian assignment at source IoU >= 0.50. No target box
+or target IoU is required. Unmatched and duplicate items stay in the denominator.
+
+For a case with Dp predicted and Dg GT deletion items:
+
+```text
+Removal Joint F1 = 2 * sum(source_IoU * C * Q_remove) / (Dp + Dg)
+```
+
+C is a model's boolean judgment that the source item is the correct entity or
+component and is actually removed in the target, rather than merely moved or
+modified. Q_remove evaluates the local removal instruction: the correct subject,
+scope, required removal and preserved constraints. Use the existing discrete
+precision/recall rubric and harmonic-mean Q formula; critical errors, missing
+instructions or p+r=0 give Q=0. This requires new semantic judgments; existing
+global instruction scores cannot be substituted for them. An additional edit/
+keep/generated origin factor is not used for these explicit removal items.
+
+If Dp+Dg=0, the per-case metric is N/A. If exactly one side has deletion items,
+there are no matches and the score is zero. A worked example with Dp=Dg=1,
+source IoU=.8, C=1 and instruction p=1, r=.5 gives Q=2/3 and score approximately
+.533.
+
+### Proposed aggregation: micro over a fixed common case set
+
+For each variant, accumulate the numerator and denominator across the same case
+set S before division:
+
+```text
+Removal Joint F1 micro =
+  2 * sum_over_cases_and_matches(source_IoU * C * Q_remove)
+  / sum_over_cases(Dp + Dg)
+```
+
+This includes a GT-negative case where one variant falsely predicts a removal,
+even if the other variant correctly predicts none. Do not filter to cases where
+both per-case values are non-null: that would discard the false-positive penalty.
+Both-empty cases contribute zero to both totals. If a variant's total denominator
+is zero its score is N/A. Missing required judge results make the comparison
+incomplete; do not silently treat provider failures as zero.
+
+This proposed deletion-item micro average is distinct from the existing ten
+metrics' paired case-level macro averages. Report the common case count,
+predicted and GT deletion counts, matched counts, unmatched predicted/GT counts,
+and false deletion counts on GT-negative cases alongside it.

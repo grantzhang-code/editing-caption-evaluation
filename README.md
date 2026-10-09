@@ -29,6 +29,13 @@ Final reports retain these **ten metrics**, in this order:
 9. Global HLD critical-error rate
 10. Global Instruction critical-error rate
 
+The guide additionally documents **11. Removal Joint F1** as a
+[new metric design](https://grantzhang-alpha-document.highway.canva-internal.dev/#removal-joint).
+It evaluates source deletion boxes, actual deletion correspondence and local
+removal instructions. Its proposed micro aggregation includes false deletions
+on GT-negative cases. This metric is not implemented in the evaluator and has
+no score in the existing 477-case results.
+
 Both displayed means and their delta use the same applicable paired cases per
 metric. Static scores retain full coverage when judge tasks fail. The selection
 applies to final summaries and CSV metric columns; frozen raw score artifacts
