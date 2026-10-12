@@ -60,7 +60,7 @@ function update() {
     : "GT 为 edit：J = 上方的 Q_instruction = " + fixed(q) + "。来源、类型或指令质量任一为零，Joint F1 就为零。";
 }
 
-document.querySelectorAll("input, select").forEach((el) => el.addEventListener("input", update));
+document.querySelectorAll("#guide-panel input, #guide-panel select").forEach((el) => el.addEventListener("input", update));
 byId("reset-joint").addEventListener("click", () => {
   const defaults = { precision: ".75", recall: ".5", "target-iou": ".8", "source-iou": ".7", origin: "edit", ep: "1", eg: "1" };
   for (const id in defaults) byId(id).value = defaults[id];

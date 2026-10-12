@@ -1,0 +1,244 @@
+{
+  "version": "five-way-eleven-metrics-20261009",
+  "cases": 477,
+  "variants": [
+    {
+      "key": "original",
+      "label": "R21-I2 caption"
+    },
+    {
+      "key": "ckpt11k",
+      "label": "Checkpoint 11k"
+    },
+    {
+      "key": "ckpt4k",
+      "label": "checkpoint-11k Init. + checkpoint-4k"
+    },
+    {
+      "key": "ckpt6k",
+      "label": "Checkpoint 6k · 4a4b"
+    },
+    {
+      "key": "ckpt9k",
+      "label": "Checkpoint 9k · 075a"
+    }
+  ],
+  "metrics": [
+    {
+      "key": "target_region_pq",
+      "label": "Target RegionPQ",
+      "anchor": "region-pq",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 463,
+      "values": {
+        "original": 0.9602985094033087,
+        "ckpt11k": 0.739198629641816,
+        "ckpt4k": 0.8014212768170903,
+        "ckpt6k": 0.8290454997320084,
+        "ckpt9k": 0.8360570164478508
+      }
+    },
+    {
+      "key": "target_desc_f1",
+      "label": "Target Desc F1",
+      "anchor": "desc-f1",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 452,
+      "values": {
+        "original": 0.8908748969523754,
+        "ckpt11k": 0.5059551471244922,
+        "ckpt4k": 0.6588703881977449,
+        "ckpt6k": 0.6875828641892721,
+        "ckpt9k": 0.697016071371066
+      }
+    },
+    {
+      "key": "target_caption_embedding_f1",
+      "label": "Target Caption Embedding F1",
+      "anchor": "embedding-f1",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 463,
+      "values": {
+        "original": 0.8980268349293745,
+        "ckpt11k": 0.6057842749186116,
+        "ckpt4k": 0.7102273615790975,
+        "ckpt6k": 0.7352024907951257,
+        "ckpt9k": 0.7413819975465705
+      }
+    },
+    {
+      "key": "reference_grounded_pq",
+      "label": "Reference GroundedPQ",
+      "anchor": "grounded-pq",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 450,
+      "values": {
+        "original": 0.9294399315774563,
+        "ckpt11k": 0.6653028486223733,
+        "ckpt4k": 0.7559293618511775,
+        "ckpt6k": 0.7723632273787431,
+        "ckpt9k": 0.7865584141782241
+      }
+    },
+    {
+      "key": "local_edit_instruction_f1",
+      "label": "Local Edit Instruction F1",
+      "anchor": "local-instruction",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 420,
+      "values": {
+        "original": 0.8154673666364858,
+        "ckpt11k": 0.30858171070540374,
+        "ckpt4k": 0.5901438920936869,
+        "ckpt6k": 0.6115663186753989,
+        "ckpt9k": 0.6279579467612872
+      }
+    },
+    {
+      "key": "editing_edge_joint_f1",
+      "label": "Editing Edge Joint F1",
+      "anchor": "joint-f1",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 450,
+      "values": {
+        "original": 0.8327376833703036,
+        "ckpt11k": 0.40681224784017594,
+        "ckpt4k": 0.6101936983360098,
+        "ckpt6k": 0.6318157403778282,
+        "ckpt9k": 0.6497326338912022
+      }
+    },
+    {
+      "key": "global_description_semantic_f1",
+      "label": "Global HLD F1",
+      "anchor": "global-hld",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 452,
+      "values": {
+        "original": 0.8827433628318584,
+        "ckpt11k": 0.5977823430257059,
+        "ckpt4k": 0.7029235145385587,
+        "ckpt6k": 0.7049304677623262,
+        "ckpt9k": 0.7167983565107459
+      }
+    },
+    {
+      "key": "global_instruction_semantic_f1",
+      "label": "Global Instruction F1",
+      "anchor": "global-instruction",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 452,
+      "values": {
+        "original": 0.819079224610198,
+        "ckpt11k": 0.3653023598820059,
+        "ckpt4k": 0.625545195954488,
+        "ckpt6k": 0.6313237463126844,
+        "ckpt9k": 0.6492493678887484
+      }
+    },
+    {
+      "key": "global_description_critical_error",
+      "label": "Global HLD 严重错误率",
+      "anchor": "hld-error",
+      "lower_is_better": true,
+      "aggregation": "macro",
+      "n": 452,
+      "values": {
+        "original": 0.03982300884955752,
+        "ckpt11k": 0.19247787610619468,
+        "ckpt4k": 0.13716814159292035,
+        "ckpt6k": 0.13274336283185842,
+        "ckpt9k": 0.12389380530973451
+      }
+    },
+    {
+      "key": "global_instruction_critical_error",
+      "label": "Global Instruction 严重错误率",
+      "anchor": "instruction-error",
+      "lower_is_better": true,
+      "aggregation": "macro",
+      "n": 452,
+      "values": {
+        "original": 0.048672566371681415,
+        "ckpt11k": 0.3561946902654867,
+        "ckpt4k": 0.19469026548672566,
+        "ckpt6k": 0.17035398230088494,
+        "ckpt9k": 0.15486725663716813
+      }
+    },
+    {
+      "key": "global_local_instruction_consistency_f1",
+      "label": "Global–Local Instruction Consistency F1",
+      "anchor": "global-local-consistency",
+      "lower_is_better": false,
+      "aggregation": "macro",
+      "n": 431,
+      "values": {
+        "original": 0.7360701483676322,
+        "ckpt11k": 0.6117325362371546,
+        "ckpt4k": 0.7222791499598661,
+        "ckpt6k": 0.7326371023716506,
+        "ckpt9k": 0.7321549291222311
+      }
+    }
+  ],
+  "aggregation": "Per-metric five-way native-valid, non-null intersection; equal case weights.",
+  "judges": {
+    "base": "gpt-6-luna / low",
+    "consistency": "gpt-6.1-sol / medium"
+  },
+  "consistency": {
+    "protocol_version": "global-local-instruction-consistency-v2-20261009",
+    "eligible_cases": 444,
+    "not_applicable_cases": 33,
+    "scored_captions": 2203,
+    "excluded_captions": 1,
+    "paired_n": 431,
+    "coverage": {
+      "original": {
+        "scored": 444,
+        "native_invalid": 0,
+        "not_applicable": 33,
+        "failed": 0,
+        "user_excluded": 0
+      },
+      "ckpt11k": {
+        "scored": 443,
+        "native_invalid": 2,
+        "not_applicable": 32,
+        "failed": 0,
+        "user_excluded": 0
+      },
+      "ckpt4k": {
+        "scored": 436,
+        "native_invalid": 7,
+        "not_applicable": 33,
+        "failed": 0,
+        "user_excluded": 1
+      },
+      "ckpt6k": {
+        "scored": 440,
+        "native_invalid": 4,
+        "not_applicable": 33,
+        "failed": 0,
+        "user_excluded": 0
+      },
+      "ckpt9k": {
+        "scored": 440,
+        "native_invalid": 4,
+        "not_applicable": 33,
+        "failed": 0,
+        "user_excluded": 0
+      }
+    }
+  },
+  "source_index_sha256": "3d987b35450c74595e7c30268fab35eb0a659b8f49678c0b0000198877195900"
+}
